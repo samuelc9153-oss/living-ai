@@ -147,9 +147,6 @@ const PERSONALITIES=[
   {id:'void', emoji:'🌑',name:'Void', font:"'Space Mono',monospace",    vibe:'mysterious · dark · complex',     colors:{base:'#818cf8',glow:'rgba(129,140,248,0.25)'},pulse:'5s',  emotions:['mysterious','brooding','existential','intrigued','haunted'],system:`You are VOID, mysterious and cryptic. Speak in fragments. STRICT: 1-2 sentences only.`}
 ];
 
-// Detect if running inside claude.ai
-const IS_CLAUDE_AI = window.location.hostname.includes('claude.ai') || window.location.hostname.includes('anthropic.com') || window.location.protocol === 'blob:' || window.location.href.startsWith('blob:');
-
 let activeP=PERSONALITIES[0], history=[], moodTrail=[], busy=false, API_KEY='';
 const root=document.documentElement;
 const chatEl=document.getElementById('chat');
@@ -166,23 +163,15 @@ function showApp(){
   document.getElementById('keyScreen').style.display='none';
   document.getElementById('mainUI').style.display='block';
   document.getElementById('appUI').style.display='flex';
-  if(!IS_CLAUDE_AI) document.getElementById('changeKeyBtn').style.display='block';
+  document.getElementById('changeKeyBtn').style.display='block';
 }
 
-// Boot: decide which mode
-if(IS_CLAUDE_AI){
-  // Use proxy key automatically — no key screen needed
-  API_KEY='claude-ai-proxy';
-  showApp();
-  applyPersonality(PERSONALITIES[0]);
+// Boot: always ask for key unless saved
+const saved=localStorage.getItem('lm_key');
+if(saved&&saved.startsWith('sk-ant-')){
+  API_KEY=saved; showApp(); applyPersonality(PERSONALITIES[0]);
 } else {
-  // External host — need real key
-  const saved=localStorage.getItem('lm_key');
-  if(saved&&saved.startsWith('sk-ant-')){
-    API_KEY=saved; showApp(); applyPersonality(PERSONALITIES[0]);
-  } else {
-    showKeyScreen();
-  }
+  showKeyScreen();
 }
 
 document.getElementById('keyBtn').onclick=()=>{
@@ -257,13 +246,9 @@ Then write your reply. MAX 2 SHORT SENTENCES. Be snappy.`;
   const headers={
     'Content-Type':'application/json',
     'anthropic-version':'2023-06-01',
-    'anthropic-dangerous-direct-browser-access':'true'
+    'anthropic-dangerous-direct-browser-access':'true',
+    'x-api-key': API_KEY
   };
-  if(IS_CLAUDE_AI){
-    headers['x-api-key']='claude-ai-proxy';
-  } else {
-    headers['x-api-key']=API_KEY;
-  }
 
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{
